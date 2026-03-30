@@ -26,17 +26,31 @@
             color: #f8fafc;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             padding: 20px;
         }
 
+        /* --- RESPONSIVE GRID SYSTEM --- */
         .dashboard {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1100px;
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            /* Default: 1 column for mobile */
+            grid-template-columns: 1fr;
             gap: 24px;
+        }
+
+        @media (min-width: 850px) {
+            .dashboard {
+                /* 2 columns for desktop */
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .full-width { 
+            grid-column: 1 / -1; 
         }
 
         /* Modern Card Design */
@@ -46,7 +60,7 @@
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
             border-radius: 28px;
-            padding: 32px;
+            padding: clamp(20px, 5vw, 32px);
             box-shadow: var(--card-shadow);
             position: relative;
             overflow: hidden;
@@ -60,26 +74,23 @@
             opacity: 0.3;
         }
 
-        .full-width { grid-column: 1 / -1; }
-
-        /* Typography & Price Display */
+        /* Price Display */
         .header-box h1 { 
-            margin: 0; font-size: 1.1rem; text-transform: uppercase; 
+            margin: 0; font-size: 0.9rem; text-transform: uppercase; 
             letter-spacing: 2px; opacity: 0.6; display: flex; align-items: center; gap: 8px; 
         }
 
-        .price-container { display: flex; align-items: center; gap: 20px; margin: 15px 0; }
+        .price-container { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin: 15px 0; }
         
         .header-box h2 { 
-            margin: 0; font-size: 4.2rem; font-weight: 800; color: #fff;
+            margin: 0; font-size: clamp(2.5rem, 8vw, 4.2rem); font-weight: 800; color: #fff;
             text-shadow: 0 0 30px var(--gold-glow);
         }
 
-        /* Live Indicator Pulse */
+        /* Live Indicator */
         .live-pulse {
             width: 10px; height: 10px; background: #4ade80;
             border-radius: 50%; display: inline-block;
-            box-shadow: 0 0 0 rgba(74, 222, 128, 0.4);
             animation: pulse 2s infinite;
             margin-right: 8px;
         }
@@ -104,8 +115,6 @@
             border-radius: 16px; color: white; font-size: 1rem;
         }
 
-        input:focus { outline: none; border-color: var(--gold); background: rgba(255,255,255,0.07); }
-
         button {
             width: 100%; padding: 18px; background: var(--gold);
             color: #000; border: none; border-radius: 18px;
@@ -119,12 +128,13 @@
             background: #fff;
         }
 
-        /* Chart height */
-        .chart-box { height: 400px; }
+        .chart-box { height: clamp(300px, 50vh, 450px); }
 
-        @media (max-width: 768px) {
-            .dashboard { grid-template-columns: 1fr; }
-            .header-box h2 { font-size: 2.8rem; }
+        /* News Layout */
+        #news-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
         }
     </style>
 </head>
@@ -150,7 +160,6 @@
 
         <div class="card">
             <h3 style="margin-top:0"><i data-lucide="bell" style="color: var(--gold)"></i> Smart Alerts</h3>
-            
             <div class="input-group">
                 <label>WhatsApp Number</label>
                 <div class="input-wrapper">
@@ -158,7 +167,6 @@
                     <input type="text" id="phone" placeholder="+91 00000 00000">
                 </div>
             </div>
-            
             <div class="input-group">
                 <label>Target Price (INR)</label>
                 <div class="input-wrapper">
@@ -166,7 +174,6 @@
                     <input type="number" id="target" placeholder="Enter amount">
                 </div>
             </div>
-            
             <button onclick="setAlert()">
                 Enable Tracking <i data-lucide="chevron-right"></i>
             </button>
@@ -190,6 +197,13 @@
                 </div>
             </div>
         </div>
+
+        <div class="card full-width">
+            <h3 style="margin-top:0"><i data-lucide="newspaper" style="color: var(--gold)"></i> Market Briefing</h3>
+            <div id="news-container">
+                <p style="opacity: 0.5;">Loading latest briefings...</p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -200,22 +214,19 @@
             try {
                 const response = await fetch('/api/price');
                 const data = await response.json();
-                
                 if(data.current_price > 0) {
                     const priceEl = document.getElementById('currentPrice');
                     priceEl.innerText = `₹ ${data.current_price.toLocaleString('en-IN')}`;
                     updateChart(data.history);
                 }
-            } catch (error) { console.error("API Fetch Error:", error); }
+            } catch (error) { console.error("Price Fetch Error:", error); }
         }
 
         function updateChart(history) {
-            // --- THE TIMEZONE FIX ---
             const labels = history.map(h => {
-                const date = new Date(h.time); // Browser sees 'Z' and converts to IST
+                const date = new Date(h.time);
                 return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
             });
-            
             const prices = history.map(h => h.price);
 
             if (!goldChart) {
@@ -236,17 +247,14 @@
                             fill: true,
                             tension: 0.45,
                             pointRadius: 0,
-                            pointHoverRadius: 6,
-                            pointHoverBackgroundColor: '#fff',
-                            pointHoverBorderColor: '#FFD700'
+                            pointHoverRadius: 6
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        interaction: { intersect: false, mode: 'index' },
                         scales: {
-                            x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.4)', font: { family: 'Plus Jakarta Sans' } } },
+                            x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.4)' } },
                             y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)' } }
                         },
                         plugins: { legend: { display: false } }
@@ -259,12 +267,32 @@
             }
         }
 
+        async function fetchNews() {
+            const container = document.getElementById('news-container');
+            try {
+                const res = await fetch('/api/news');
+                const news = await res.json();
+                if (news.length === 0) throw new Error("No news");
+
+                container.innerHTML = news.map(item => `
+                    <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 20px; border: 1px solid var(--glass-border); display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <h4 style="margin: 0 0 10px 0; font-size: 1rem; line-height: 1.4;">${item.title}</h4>
+                            <p style="font-size: 0.85rem; opacity: 0.6; margin-bottom: 20px;">${item.description?.substring(0, 100)}...</p>
+                        </div>
+                        <a href="${item.url}" target="_blank" style="color: var(--gold); text-decoration: none; font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 5px;">Read Article <i data-lucide="external-link" size="14"></i></a>
+                    </div>
+                `).join('');
+                lucide.createIcons(); // Refresh icons for news items
+            } catch (e) {
+                container.innerHTML = "<p style='opacity:0.5'>Market news feed currently updating...</p>";
+            }
+        }
+
         async function setAlert() {
-            // Logic remains same as previous, handles POST to /api/subscribe
             const phone = document.getElementById('phone').value;
             const target = document.getElementById('target').value;
             const status = document.getElementById('alertStatus');
-            
             try {
                 const res = await fetch('/api/subscribe', {
                     method: 'POST',
@@ -274,40 +302,13 @@
                 const data = await res.json();
                 status.innerText = data.message;
                 status.style.color = "#4ade80";
-            } catch (e) { status.innerText = "Error setting alert."; }
+            } catch (e) { status.innerText = "Error connection to server."; }
         }
 
+        // Initial loads
         fetchPrice();
+        fetchNews();
         setInterval(fetchPrice, 30000);
-        
-async function fetchNews() {
-    const container = document.getElementById('news-container');
-    try {
-        const res = await fetch('/api/news');
-        const news = await res.json();
-        
-        container.innerHTML = news.map(item => `
-            <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
-                <h4 style="margin: 0 0 10px 0; font-size: 0.95rem;">${item.title}</h4>
-                <p style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 15px;">${item.description?.substring(0, 80)}...</p>
-                <a href="${item.url}" target="_blank" style="color: var(--gold); text-decoration: none; font-size: 0.8rem; font-weight: 700;">Read More →</a>
-            </div>
-        `).join('');
-    } catch (e) {
-        container.innerHTML = "<p>News feed temporarily unavailable.</p>";
-    }
-}
-
-// Call this once on load
-fetchNews();
-
     </script>
-
-<div class="card full-width">
-    <h3><i data-lucide="newspaper" style="color: var(--gold)"></i> Market Briefing</h3>
-    <div id="news-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
-        <p style="opacity: 0.5;">Loading latest briefings...</p>
-    </div>
-</div>
 </body>
 </html>
