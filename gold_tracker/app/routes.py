@@ -45,3 +45,19 @@ def subscribe_alert():
         
     db.session.commit()
     return jsonify({"message": "Alert set successfully!"})
+
+import requests
+from flask import jsonify
+
+@app.route('/api/news')
+def get_gold_news():
+    # Replace with your own free key from newsapi.org
+    API_KEY = 'your_news_api_key' 
+    url = f'https://newsapi.org/v2/everything?q=gold+price+market&language=en&sortBy=publishedAt&pageSize=3&apiKey={API_KEY}'
+    
+    try:
+        response = requests.get(url)
+        articles = response.json().get('articles', [])
+        return jsonify(articles)
+    except Exception as e:
+        return jsonify([])
